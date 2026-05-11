@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Pro — Турнирный менеджер</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+
+<style>
+  /* =================================================================
+     ДИЗАЙН-ТОКЕНЫ — СВЕТЛАЯ ЗЕЛЁНАЯ ТЕМА
+     ================================================================= */
+  :root {
+    --bg-0: #f0f7f1;
+    --bg-1: #e8f3ea;
+    --bg-2: #ffffff;
+    --bg-3: #f5faf6;
+    --surface: rgba(255, 255, 255, 0.78);
+    --surface-strong: rgba(255, 255, 255, 0.95);
+    --border: rgba(15, 80, 50, 0.08);
+    --border-strong: rgba(15, 80, 50, 0.16);
+    --text-1: #0e2920;
+    --text-2: #4a6b5d;
+    --text-3: #80968a;
+    --win: #059862;
+    --win-soft: rgba(5, 152, 98, 0.14);
+    --draw: #d97706;
+    --draw-soft: rgba(217, 119, 6, 0.14);
+    --loss: #dc2626;
+    --loss-soft: rgba(220, 38, 38, 0.14);
+    --accent: #047857;
+    --accent-2: #059669;
+    --accent-3: #10b981;
+    --gold: #d4a017;
+    --silver: #94a3b8;
+    --bronze: #b87333;
+    --shadow-lg: 0 20px 50px -18px rgba(5, 100, 60, 0.22);
+    --shadow-sm: 0 2px 8px rgba(5, 100, 60, 0.06);
+    --radius: 14px;
+    --radius-lg: 20px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg-0);
+    color: var(--text-1);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(16, 185, 129, 0.18), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 110%, rgba(5, 150, 105, 0.12), transparent 60%),
+      radial-gradient(ellipse 50% 30% at 10% 50%, rgba(167, 243, 208, 0.25), transparent 60%),
+      var(--bg-0);
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    z-index: 1000;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; }
+
+  /* LAYOUT */
+  .app { max-width: 1400px; margin: 0 auto; padding: 24px 28px 80px; }
+
+  /* ШАПКА */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(236, 253, 245, 0.7));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.6), rgba(16, 185, 129, 0.4), transparent);
+  }
+
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .crest { width: 56px; height: 56px; flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(5, 150, 105, 0.35)); }
+  .brand-text { display: flex; flex-direction: column; gap: 2px; }
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    line-height: 1;
+    background: linear-gradient(135deg, #047857 0%, #10b981 60%, #34d399 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.04em;
+  }
+  .brand-sub { font-size: 11px; color: var(--text-3); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; }
+
+  .header-right { display: flex; align-items: center; gap: 14px; }
+
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    background: rgba(5, 152, 98, 0.12);
+    border: 1px solid rgba(5, 152, 98, 0.4);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    color: var(--win);
+  }
+  .live-badge.read-only { background: rgba(4, 120, 87, 0.12); border-color: rgba(4, 120, 87, 0.4); color: var(--accent); }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--win);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 12px var(--win);
+  }
+  .live-badge.read-only .live-dot { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  /* ВКЛАДКИ */
+  .tabs {
+    display: flex; gap: 4px; padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    margin-bottom: 22px;
+    overflow-x: auto;
+    box-shadow: var(--shadow-sm);
+  }
+  .tab {
+    flex: 1; min-width: 120px;
+    padding: 12px 18px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .tab:hover { color: var(--text-1); background: rgba(5, 150, 105, 0.06); }
+  .tab.active {
+    color: white;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
+  }
+  .tab .badge-count {
+    display: inline-block; margin-left: 6px; padding: 1px 7px;
+    background: rgba(15, 80, 50, 0.1);
+    border-radius: 10px;
+    font-size: 10px; font-weight: 700;
+  }
+  .tab.active .badge-count { background: rgba(255, 255, 255, 0.25); color: white; }
+
+  /* ПАНЕЛЬ */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 28px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 22px;
+    animation: fadeUp 0.4s ease;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-bottom: 22px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.04em; color: var(--text-1); }
+  .panel-title-row { display: flex; align-items: center; gap: 12px; }
+  .panel-title-row .accent-bar {
+    width: 4px; height: 24px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-3));
+    border-radius: 2px;
+  }
+  .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ПОЛЯ ВВОДА */
+  .field-group { margin-bottom: 20px; }
+  .field-label {
+    display: block;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--text-3);
+    margin-bottom: 8px;
+  }
+
+  .input, .select {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text-1);
+    font-family: inherit; font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  .input:focus, .select:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12);
+  }
+  .input::placeholder { color: var(--text-3); }
+  .select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%234a6b5d' d='M6 8 0 0h12z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+  }
+
+  .row-input { display: flex; gap: 8px; align-items: stretch; }
+  .row-input .input { flex: 1; }
+
+  /* КНОПКИ */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px 18px;
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text-1);
+    font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn:hover {
+    background: var(--bg-3);
+    border-color: var(--accent-3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.12);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #065f46, #047857);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.45);
+    color: white;
+  }
+  .btn-success {
+    background: linear-gradient(135deg, var(--win), #047857);
+    border-color: var(--win);
+    color: white;
+    box-shadow: 0 4px 14px rgba(5, 152, 98, 0.32);
+  }
+  .btn-success:hover { box-shadow: 0 6px 20px rgba(5, 152, 98, 0.45); color: white; }
+  .btn-danger {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: var(--loss);
+  }
+  .btn-danger:hover { background: rgba(220, 38, 38, 0.15); border-color: var(--loss); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* ЧИПЫ КОМАНД */
+  .chip-row {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    min-height: 56px;
+    padding: 14px;
+    background: rgba(236, 253, 245, 0.5);
+    border: 1px dashed var(--border-strong);
+    border-radius: 12px;
+  }
+  .chip-row.empty::before {
+    content: 'Команды ещё не добавлены — добавьте минимум 2 команды для генерации расписания';
+    color: var(--text-3);
+    font-size: 12px; font-style: italic;
+    align-self: center; margin: auto;
+    text-align: center;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 8px 8px 14px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.1));
+    border: 1px solid rgba(5, 150, 105, 0.3);
+    border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    color: var(--text-1);
+    transition: all 0.2s ease;
+    animation: chipIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes chipIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+  .chip:hover { background: rgba(16, 185, 129, 0.22); }
+  .chip-remove {
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    background: rgba(15, 80, 50, 0.08);
+    border: none;
+    border-radius: 50%;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 16px; line-height: 1;
+    transition: all 0.15s ease;
+  }
+  .chip-remove:hover { background: var(--loss); color: white; }
+
+  .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .setup-grid { grid-template-columns: 1fr; } }
+
+  /* ТУРЫ */
+  .matchday-block { margin-bottom: 28px; }
+  .matchday-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 12px; padding-bottom: 8px;
+  }
+  .matchday-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+  .matchday-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+  .matchday-meta {
+    font-size: 11px; color: var(--text-3);
+    letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+  }
+
+  .fixture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 14px;
+  }
+
+  .fixture {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 250, 246, 0.85));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .fixture:hover { border-color: var(--accent-3); box-shadow: 0 6px 20px rgba(5, 150, 105, 0.1); }
+  .fixture.completed {
+    border-color: rgba(5, 152, 98, 0.3);
+    background: linear-gradient(135deg, rgba(236, 253, 245, 0.8), rgba(255, 255, 255, 0.9));
+  }
+  .fixture.bye { opacity: 0.65; }
+
+  .fixture-teams {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .fixture-team-name { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .fixture-team-name.away { text-align: right; }
+  .score-input {
+    width: 52px; padding: 10px 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px; font-weight: 700;
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--text-1);
+  }
+  .score-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
+  .score-divider {
+    display: flex; align-items: center; gap: 4px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; color: var(--text-3);
+  }
+
+  .fixture-status {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .fixture-status.pending { background: var(--draw-soft); color: var(--draw); border: 1px solid rgba(217, 119, 6, 0.3); }
+  .fixture-status.done { background: var(--win-soft); color: var(--win); border: 1px solid rgba(5, 152, 98, 0.35); }
+
+  .scorers-section {
+    margin-top: 12px; padding-top: 14px;
+    border-top: 1px dashed var(--border-strong);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .scorers-side { display: flex; flex-direction: column; gap: 6px; }
+  .scorers-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3);
+    margin-bottom: 4px;
+  }
+
+  .scorer-input-wrap { position: relative; }
+  .scorer-input {
+    width: 100%; padding: 7px 28px 7px 10px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-1);
+    font-family: inherit; font-size: 12px;
+  }
+  .scorer-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.1); }
+  .scorer-remove {
+    position: absolute; right: 4px; top: 50%;
+    transform: translateY(-50%);
+    width: 20px; height: 20px;
+    background: transparent; border: none;
+    color: var(--text-3); cursor: pointer;
+    font-size: 14px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .scorer-remove:hover { background: rgba(220, 38, 38, 0.15); color: var(--loss); }
+
+  .add-scorer-btn {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-2);
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .add-scorer-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(5, 150, 105, 0.05); }
+
+  .autocomplete {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(15, 80, 50, 0.18);
+  }
+  .autocomplete-item {
+    padding: 8px 12px;
+    font-size: 12px; cursor: pointer;
+    color: var(--text-1);
+    transition: all 0.1s;
+  }
+  .autocomplete-item:hover, .autocomplete-item.highlighted {
+    background: rgba(5, 150, 105, 0.12);
+    color: var(--accent);
+  }
+
+  .fixture-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .save-result {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--win), #047857);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(5, 152, 98, 0.25);
+  }
+  .save-result:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5, 152, 98, 0.45); }
+
+  /* ТУРНИРНАЯ ТАБЛИЦА */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: white;
+    box-shadow: var(--shadow-sm);
+  }
+  table.standings, table.matrix, table.scorers {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  table.standings thead, table.scorers thead { position: sticky; top: 0; z-index: 5; }
+  table.standings thead th, table.scorers thead th, table.matrix thead th {
+    background: linear-gradient(180deg, #ecfdf5, #d1fae5);
+    color: var(--accent);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 14px 12px;
+    text-align: center;
+    border-bottom: 2px solid rgba(5, 150, 105, 0.2);
+    white-space: nowrap;
+  }
+  table.standings thead th:nth-child(2), table.scorers thead th:nth-child(2) { text-align: left; }
+  table.standings thead th:nth-child(1) { width: 50px; }
+
+  table.standings tbody tr, table.scorers tbody tr {
+    transition: background 0.15s ease;
+    border-bottom: 1px solid rgba(15, 80, 50, 0.04);
+  }
+  table.standings tbody tr:nth-child(odd), table.scorers tbody tr:nth-child(odd) { background: rgba(236, 253, 245, 0.4); }
+  table.standings tbody tr:hover, table.scorers tbody tr:hover { background: rgba(5, 150, 105, 0.08); }
+
+  table.standings td, table.scorers td {
+    padding: 14px 12px;
+    text-align: center;
+    color: var(--text-1);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    border-right: 1px solid rgba(15, 80, 50, 0.04);
+  }
+  table.standings td:last-child, table.scorers td:last-child { border-right: none; }
+  table.standings td.team-cell, table.scorers td.team-cell {
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    color: var(--text-1);
+    font-size: 14px;
+    letter-spacing: 0.01em;
+  }
+
+  td.col-pts { color: var(--accent); font-weight: 800; font-size: 15px; background: rgba(5, 150, 105, 0.08); }
+  td.col-gd.positive { color: var(--win); }
+  td.col-gd.negative { color: var(--loss); }
+
+  .rank-cell {
+    position: relative;
+    font-family: 'Bebas Neue', sans-serif !important;
+    font-size: 18px !important;
+  }
+  tr.rank-1 .rank-cell { color: var(--gold); }
+  tr.rank-2 .rank-cell { color: var(--silver); }
+  tr.rank-3 .rank-cell { color: var(--bronze); }
+  tr.rank-1 td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+  tr.rank-2 td:first-child { box-shadow: inset 4px 0 0 var(--silver); }
+  tr.rank-3 td:first-child { box-shadow: inset 4px 0 0 var(--bronze); }
+
+  .rank-change {
+    display: inline-block; margin-left: 6px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    animation: rankPop 0.6s ease;
+  }
+  .rank-change.up { color: var(--win); }
+  .rank-change.down { color: var(--loss); }
+  @keyframes rankPop {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    50% { transform: translateY(-4px) scale(1.3); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .form-cell { display: inline-flex; gap: 3px; justify-content: center; }
+  .form-square {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    font-size: 9px; font-weight: 800;
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .form-square.W { background: var(--win); }
+  .form-square.D { background: var(--draw); color: white; }
+  .form-square.L { background: var(--loss); }
+  .form-square.empty { background: rgba(15, 80, 50, 0.08); color: var(--text-3); }
+
+  /* МАТРИЦА */
+  table.matrix { border-collapse: separate; border-spacing: 2px; }
+  table.matrix th, table.matrix td {
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 12px;
+    background: white;
+    border-radius: 6px;
+    min-width: 70px;
+  }
+  table.matrix th {
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 10px;
+    background: linear-gradient(180deg, #ecfdf5, #d1fae5);
+  }
+  table.matrix th.row-header {
+    text-align: left; padding-left: 12px;
+    text-transform: none; letter-spacing: 0;
+    font-size: 12px; color: var(--text-1);
+    background: linear-gradient(90deg, #ecfdf5, #d1fae5);
+    position: sticky; left: 0; z-index: 4;
+    min-width: 130px;
+  }
+  table.matrix th.corner { background: transparent; position: sticky; left: 0; z-index: 5; }
+  table.matrix td.diagonal { background: rgba(15, 80, 50, 0.04); color: var(--text-3); }
+  table.matrix td.cell-W { background: var(--win-soft); color: var(--win); border: 1px solid rgba(5, 152, 98, 0.35); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  table.matrix td.cell-L { background: var(--loss-soft); color: var(--loss); border: 1px solid rgba(220, 38, 38, 0.3); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  table.matrix td.cell-D { background: var(--draw-soft); color: var(--draw); border: 1px solid rgba(217, 119, 6, 0.3); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  table.matrix td.cell-pending { color: var(--text-3); font-style: italic; font-size: 10px; }
+  table.matrix td.cell-multi { font-size: 10px; line-height: 1.4; }
+
+  /* БОМБАРДИРЫ */
+  .medal { font-size: 18px; }
+  td.goal-count { color: var(--win); font-size: 15px; font-weight: 800; }
+
+  /* ПУСТЫЕ СОСТОЯНИЯ */
+  .empty-state { padding: 60px 20px; text-align: center; color: var(--text-3); }
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; color: var(--text-2);
+    letter-spacing: 0.06em; margin-bottom: 8px;
+  }
+  .empty-state-sub { font-size: 13px; }
+
+  /* УВЕДОМЛЕНИЯ */
+  .toast-wrap {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .toast {
+    padding: 14px 20px;
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 12px 32px rgba(15, 80, 50, 0.18);
+    font-size: 13px; font-weight: 600;
+    color: var(--text-1);
+    animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-left: 4px solid var(--accent);
+    max-width: 320px;
+  }
+  .toast.success { border-left-color: var(--win); }
+  .toast.error { border-left-color: var(--loss); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* МОДАЛЬНОЕ ОКНО */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 80, 50, 0.45);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    max-width: 520px; width: 100%;
+    padding: 28px;
+    box-shadow: 0 30px 80px rgba(15, 80, 50, 0.35);
+    animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.04em; margin-bottom: 8px; color: var(--text-1); }
+  .modal p { color: var(--text-2); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .share-link-box {
+    padding: 12px 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--accent);
+    word-break: break-all;
+    margin-bottom: 16px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  /* РЕЖИМ ПРОСМОТРА */
+  body.read-only .fixture-actions,
+  body.read-only .add-scorer-btn,
+  body.read-only .scorer-remove,
+  body.read-only .chip-remove,
+  body.read-only .panel.setup-panel,
+  body.read-only .new-tournament-btn { display: none !important; }
+  body.read-only .score-input,
+  body.read-only .scorer-input { pointer-events: none; opacity: 0.95; background: var(--bg-3); }
+  body.read-only .tab[data-tab="setup"] { display: none; }
+
+  .footer-actions {
+    display: flex; gap: 10px;
+    justify-content: center; flex-wrap: wrap;
+    padding: 24px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .stat-card {
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-label {
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-3);
+    font-weight: 700; margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px; line-height: 1;
+    color: var(--text-1);
+    letter-spacing: 0.02em;
+  }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green { color: var(--win); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(236, 253, 245, 0.5); }
+  ::-webkit-scrollbar-thumb { background: rgba(5, 150, 105, 0.3); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(5, 150, 105, 0.5); }
+
+  @media (max-width: 600px) {
+    .app { padding: 16px 12px 60px; }
+    header { padding: 14px 16px; flex-wrap: wrap; }
+    .brand-name { font-size: 24px; }
+    .panel { padding: 18px; }
+    .fixture-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <svg class="crest" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#047857"/>
+          </linearGradient>
+          <linearGradient id="shieldGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ecfdf5"/>
+            <stop offset="100%" stop-color="#d1fae5"/>
+          </linearGradient>
+        </defs>
+        <path d="M32 4 L58 12 L58 32 Q58 50 32 60 Q6 50 6 32 L6 12 Z" fill="url(#shieldGrad2)" stroke="url(#shieldGrad)" stroke-width="2.5"/>
+        <circle cx="32" cy="30" r="13" fill="none" stroke="#047857" stroke-width="1.8"/>
+        <polygon points="32,21 38,25 36,32 28,32 26,25" fill="#059669" opacity="0.95"/>
+        <circle cx="32" cy="30" r="2" fill="#047857"/>
+        <text x="32" y="52" font-family="Bebas Neue, sans-serif" font-size="8" fill="#047857" text-anchor="middle" letter-spacing="1">PITCH PRO</text>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-name" id="header-tournament-name">PITCH PRO</div>
+        <div class="brand-sub">Турнирный менеджер · Осн. 2026</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="live-badge" id="live-badge">
+        <span class="live-dot"></span>
+        <span id="live-text">В ЭФИРЕ</span>
+      </span>
+      <button class="btn btn-danger new-tournament-btn" onclick="confirmNewTournament()">Новый турнир</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="setup">Настройка</button>
+    <button class="tab" data-tab="fixtures">Матчи <span class="badge-count" id="fixtures-count">0</span></button>
+    <button class="tab" data-tab="standings">Таблица</button>
+    <button class="tab" data-tab="scorers">Бомбардиры</button>
+  </nav>
+
+  <div id="stats-bar" class="stats-bar" style="display:none;">
+    <div class="stat-card"><div class="stat-label">Команд</div><div class="stat-value accent" id="stat-teams">0</div></div>
+    <div class="stat-card"><div class="stat-label">Сыграно матчей</div><div class="stat-value" id="stat-played">0</div></div>
+    <div class="stat-card"><div class="stat-label">Всего матчей</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat-card"><div class="stat-label">Забито голов</div><div class="stat-value green" id="stat-goals">0</div></div>
+  </div>
+
+  <section class="tab-content active setup-panel" data-tab="setup">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Настройка турнира</h2>
+        </div>
+      </div>
+
+      <div class="setup-grid">
+        <div class="field-group">
+          <label class="field-label">Название турнира</label>
+          <input type="text" class="input" id="tournament-name" placeholder="например: Кубок Чемпионов 2026" maxlength="40">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Количество кругов</label>
+          <select class="select" id="num-rounds">
+            <option value="1">1 круг (однокруговой)</option>
+            <option value="2" selected>2 круга (дома и в гостях)</option>
+            <option value="3">3 круга</option>
+            <option value="4">4 круга</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Добавление команд</label>
+        <div class="row-input">
+          <input type="text" class="input" id="team-input" placeholder="Введите название команды и нажмите Enter…" maxlength="30">
+          <button class="btn btn-primary" onclick="addTeam()">+ Добавить команду</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Команды (<span id="team-count">0</span>)</label>
+        <div class="chip-row empty" id="team-chips"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px;">
+        <button class="btn btn-success" id="generate-btn" onclick="generateSchedule()" disabled>⚡ Сгенерировать расписание</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="fixtures">
+    <div class="panel" id="fixtures-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Матчи и результаты</h2>
+        </div>
+        <div class="panel-actions">
+          <span class="mono" style="color:var(--text-3); font-size:12px;" id="fixtures-progress">Сыграно 0 из 0</span>
+        </div>
+      </div>
+      <div id="fixtures-content">
+        <div class="empty-state">
+          <div class="empty-state-icon">⚽</div>
+          <div class="empty-state-title">Матчей пока нет</div>
+          <div class="empty-state-sub">Добавьте команды и сгенерируйте расписание, чтобы увидеть матчи.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="standings">
+    <div class="panel" id="standings-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Турнирная таблица</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('standings-table-wrap', 'tablitsa.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="standings-table-wrap"></div>
+    </div>
+
+    <div class="panel" id="matrix-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar" style="background: linear-gradient(180deg, var(--win), #047857);"></div>
+          <h2 class="panel-title">Матрица очных встреч</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('matrix-table-wrap', 'matritsa.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="matrix-table-wrap"></div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="scorers">
+    <div class="panel" id="scorers-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar" style="background: linear-gradient(180deg, var(--gold), #b87333);"></div>
+          <h2 class="panel-title">Лучшие бомбардиры</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('scorers-table-wrap', 'bombardiry.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="scorers-table-wrap"></div>
+    </div>
+  </section>
+
+  <div class="footer-actions" id="footer-actions">
+    <button class="btn btn-primary" onclick="generateShareLink()">🔗 Поделиться ссылкой</button>
+    <button class="btn" onclick="exportAllPNG()">📷 Скачать все таблицы</button>
+  </div>
+
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+const STORAGE_KEY = 'pitchpro_tournament_v1';
+
+let state = {
+  tournamentName: 'Кубок Чемпионов 2026',
+  numRounds: 2,
+  teams: [],
+  fixtures: [],
+  generated: false,
+  prevRanks: {},
+};
+
+let isReadOnly = false;
+
+function saveState() {
+  if (isReadOnly) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.warn(e); }
+}
+function loadState() {
+  const hash = location.hash;
+  if (hash.startsWith('#share=')) {
+    try {
+      const compressed = hash.substring(7);
+      const json = LZString.decompressFromEncodedURIComponent(compressed);
+      if (json) {
+        const loaded = JSON.parse(json);
+        state = { ...state, ...loaded };
+        isReadOnly = true;
+        document.body.classList.add('read-only');
+        document.getElementById('live-badge').classList.add('read-only');
+        document.getElementById('live-text').textContent = 'РЕЖИМ ПРОСМОТРА';
+        return;
+      }
+    } catch (e) { console.warn('Bad share link:', e); }
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const loaded = JSON.parse(raw);
+      state = { ...state, ...loaded };
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function teamById(id) { return state.teams.find(t => t.id === id) || { name: 'Неизвестно' }; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+function showToast(message, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = message;
+  wrap.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function generateRoundRobin(teams) {
+  let workingTeams = teams.slice();
+  const isOdd = workingTeams.length % 2 === 1;
+  if (isOdd) workingTeams.push(null);
+
+  const n = workingTeams.length;
+  const rounds = n - 1;
+  const half = n / 2;
+  const result = [];
+
+  const fixed = workingTeams[0];
+  let rotating = workingTeams.slice(1);
+
+  for (let r = 0; r < rounds; r++) {
+    const roundMatches = [];
+    const arrangement = [fixed, ...rotating];
+    for (let i = 0; i < half; i++) {
+      const home = arrangement[i];
+      const away = arrangement[n - 1 - i];
+      if (r % 2 === 1 && i === 0) {
+        roundMatches.push([away, home]);
+      } else {
+        roundMatches.push([home, away]);
+      }
+    }
+    result.push(roundMatches);
+    rotating.unshift(rotating.pop());
+  }
+  return result;
+}
+
+function generateSchedule() {
+  if (state.teams.length < 2) {
+    showToast('Нужно минимум 2 команды', 'error');
+    return;
+  }
+  if (state.generated && state.fixtures.some(f => f.played)) {
+    if (!confirm('Расписание уже создано и есть сыгранные матчи. Перегенерировать и потерять все результаты?')) return;
+  }
+
+  state.fixtures = [];
+  const teamIds = state.teams.map(t => t.id);
+  const baseRounds = generateRoundRobin(teamIds);
+  let matchdayCounter = 0;
+
+  for (let cycle = 0; cycle < state.numRounds; cycle++) {
+    baseRounds.forEach((round, ri) => {
+      matchdayCounter++;
+      round.forEach(([a, b]) => {
+        let home = a, away = b;
+        if (cycle % 2 === 1) { home = b; away = a; }
+        const isBye = (home === null || away === null);
+        state.fixtures.push({
+          id: uid(),
+          matchday: matchdayCounter,
+          round: cycle + 1,
+          cycleRound: ri + 1,
+          homeId: home,
+          awayId: away,
+          homeScore: null,
+          awayScore: null,
+          played: false,
+          isBye: isBye,
+          scorers: [],
+        });
+      });
+    });
+  }
+
+  state.generated = true;
+  saveState();
+  renderAll();
+  switchTab('fixtures');
+  showToast('Расписание успешно создано!', 'success');
+}
+
+function computeStandings() {
+  const rows = state.teams.map(team => ({
+    teamId: team.id,
+    name: team.name,
+    GP: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0,
+    form: [],
+  }));
+  const idx = id => rows.findIndex(r => r.teamId === id);
+
+  state.fixtures
+    .filter(f => f.played && !f.isBye)
+    .sort((a, b) => a.matchday - b.matchday)
+    .forEach(f => {
+      const h = idx(f.homeId), a = idx(f.awayId);
+      if (h < 0 || a < 0) return;
+      rows[h].GP++; rows[a].GP++;
+      rows[h].GF += f.homeScore; rows[h].GA += f.awayScore;
+      rows[a].GF += f.awayScore; rows[a].GA += f.homeScore;
+      if (f.homeScore > f.awayScore) {
+        rows[h].W++; rows[a].L++;
+        rows[h].Pts += 3;
+        rows[h].form.push('W'); rows[a].form.push('L');
+      } else if (f.homeScore < f.awayScore) {
+        rows[a].W++; rows[h].L++;
+        rows[a].Pts += 3;
+        rows[a].form.push('W'); rows[h].form.push('L');
+      } else {
+        rows[h].D++; rows[a].D++;
+        rows[h].Pts++; rows[a].Pts++;
+        rows[h].form.push('D'); rows[a].form.push('D');
+      }
+    });
+
+  rows.forEach(r => { r.GD = r.GF - r.GA; });
+  rows.sort((a, b) => b.Pts - a.Pts || b.GD - a.GD || b.GF - a.GF || a.name.localeCompare(b.name, 'ru'));
+  return rows;
+}
+
+function renderHeader() {
+  const name = (state.tournamentName || 'PITCH PRO').toUpperCase();
+  document.getElementById('header-tournament-name').textContent = name;
+  document.title = `${state.tournamentName || 'Pitch Pro'} — Турнирный менеджер`;
+}
+
+function renderSetup() {
+  document.getElementById('tournament-name').value = state.tournamentName;
+  document.getElementById('num-rounds').value = state.numRounds;
+  document.getElementById('team-count').textContent = state.teams.length;
+
+  const chipRow = document.getElementById('team-chips');
+  if (state.teams.length === 0) {
+    chipRow.classList.add('empty');
+    chipRow.innerHTML = '';
+  } else {
+    chipRow.classList.remove('empty');
+    chipRow.innerHTML = state.teams.map(t =>
+      `<span class="chip">${escapeHtml(t.name)}<button class="chip-remove" onclick="removeTeam('${t.id}')" title="Удалить">×</button></span>`
+    ).join('');
+  }
+  document.getElementById('generate-btn').disabled = state.teams.length < 2;
+}
+
+function renderStatsBar() {
+  const bar = document.getElementById('stats-bar');
+  if (!state.generated) { bar.style.display = 'none'; return; }
+  bar.style.display = 'grid';
+  const realFixtures = state.fixtures.filter(f => !f.isBye);
+  const played = realFixtures.filter(f => f.played);
+  const goals = played.reduce((s, f) => s + (f.homeScore || 0) + (f.awayScore || 0), 0);
+  document.getElementById('stat-teams').textContent = state.teams.length;
+  document.getElementById('stat-played').textContent = played.length;
+  document.getElementById('stat-total').textContent = realFixtures.length;
+  document.getElementById('stat-goals').textContent = goals;
+}
+
+function renderFixtures() {
+  const container = document.getElementById('fixtures-content');
+  if (!state.generated || state.fixtures.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚽</div>
+        <div class="empty-state-title">Матчей пока нет</div>
+        <div class="empty-state-sub">Добавьте команды и сгенерируйте расписание, чтобы увидеть матчи.</div>
+      </div>`;
+    document.getElementById('fixtures-count').textContent = '0';
+    document.getElementById('fixtures-progress').textContent = 'Сыграно 0 из 0';
+    return;
+  }
+
+  const realFixtures = state.fixtures.filter(f => !f.isBye);
+  const playedCount = realFixtures.filter(f => f.played).length;
+  document.getElementById('fixtures-count').textContent = realFixtures.length;
+  document.getElementById('fixtures-progress').textContent = `Сыграно ${playedCount} из ${realFixtures.length}`;
+
+  const byMatchday = {};
+  state.fixtures.forEach(f => {
+    if (!byMatchday[f.matchday]) byMatchday[f.matchday] = [];
+    byMatchday[f.matchday].push(f);
+  });
+
+  let html = '';
+  Object.keys(byMatchday).sort((a, b) => +a - +b).forEach(md => {
+    const fixtures = byMatchday[md];
+    const cycle = fixtures[0].round;
+    html += `
+      <div class="matchday-block">
+        <div class="matchday-header">
+          <div class="matchday-num">Тур ${md}</div>
+          <div class="matchday-line"></div>
+          <div class="matchday-meta">Круг ${cycle} из ${state.numRounds}</div>
+        </div>
+        <div class="fixture-grid">
+          ${fixtures.map(f => renderFixtureCard(f)).join('')}
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderFixtureCard(f) {
+  if (f.isBye) {
+    const realTeam = teamById(f.homeId === null ? f.awayId : f.homeId).name;
+    return `
+      <div class="fixture bye">
+        <div class="fixture-status pending">ПРОПУСК</div>
+        <div class="fixture-teams">
+          <div class="fixture-team-name">${escapeHtml(realTeam)}</div>
+          <div class="score-divider" style="font-size:13px; color:var(--text-3);">ОТДЫХАЕТ</div>
+          <div class="fixture-team-name away" style="color:var(--text-3);">— ПРОПУСК —</div>
+        </div>
+      </div>`;
+  }
+
+  const home = teamById(f.homeId);
+  const away = teamById(f.awayId);
+  const status = f.played
+    ? `<div class="fixture-status done">✓ Сыгран</div>`
+    : `<div class="fixture-status pending">Не сыгран</div>`;
+
+  const homeScore = f.homeScore !== null ? f.homeScore : '';
+  const awayScore = f.awayScore !== null ? f.awayScore : '';
+
+  const homeScorers = f.scorers.filter(s => s.teamId === f.homeId);
+  const awayScorers = f.scorers.filter(s => s.teamId === f.awayId);
+
+  return `
+    <div class="fixture ${f.played ? 'completed' : ''}" data-fid="${f.id}">
+      ${status}
+      <div class="fixture-teams">
+        <div class="fixture-team-name">${escapeHtml(home.name)}</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" min="0" max="99" class="score-input" data-side="home" value="${homeScore}" oninput="onScoreInput(event, '${f.id}')">
+          <div class="score-divider">–</div>
+          <input type="number" min="0" max="99" class="score-input" data-side="away" value="${awayScore}" oninput="onScoreInput(event, '${f.id}')">
+        </div>
+        <div class="fixture-team-name away">${escapeHtml(away.name)}</div>
+      </div>
+
+      <div class="scorers-section">
+        <div class="scorers-side">
+          <div class="scorers-label">⚽ Голы — ${escapeHtml(home.name)}</div>
+          ${homeScorers.map((s, i) => renderScorerInput(f.id, f.homeId, i, s.playerName)).join('')}
+          <button class="add-scorer-btn" onclick="addScorer('${f.id}', '${f.homeId}')">+ Добавить автора гола</button>
+        </div>
+        <div class="scorers-side">
+          <div class="scorers-label">⚽ Голы — ${escapeHtml(away.name)}</div>
+          ${awayScorers.map((s, i) => renderScorerInput(f.id, f.awayId, i, s.playerName)).join('')}
+          <button class="add-scorer-btn" onclick="addScorer('${f.id}', '${f.awayId}')">+ Добавить автора гола</button>
+        </div>
+      </div>
+
+      <div class="fixture-actions">
+        <button class="save-result" onclick="saveResult('${f.id}')">Сохранить результат</button>
+      </div>
+    </div>`;
+}
+
+function renderScorerInput(fixtureId, teamId, scorerIndex, value) {
+  const sid = `s_${fixtureId}_${teamId}_${scorerIndex}`;
+  return `
+    <div class="scorer-input-wrap">
+      <input type="text" class="scorer-input" id="${sid}"
+             placeholder="Имя игрока…"
+             value="${escapeHtml(value || '')}"
+             oninput="onScorerInput(event, '${fixtureId}', '${teamId}', ${scorerIndex})"
+             onkeydown="onScorerKey(event, '${fixtureId}', '${teamId}', ${scorerIndex})"
+             onblur="onScorerBlur(event, '${fixtureId}', '${teamId}', ${scorerIndex})"
+             onfocus="showAutocomplete(this, '${teamId}')"
+             autocomplete="off">
+      <button class="scorer-remove" onclick="removeScorer('${fixtureId}', '${teamId}', ${scorerIndex})">×</button>
+    </div>`;
+}
+
+function renderStandings() {
+  const wrap = document.getElementById('standings-table-wrap');
+  if (!state.generated || state.teams.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <div class="empty-state-title">Таблица пока пуста</div>
+        <div class="empty-state-sub">Сгенерируйте расписание, чтобы увидеть турнирную таблицу.</div>
+      </div>`;
+    return;
+  }
+
+  const rows = computeStandings();
+  const newRanks = {};
+  rows.forEach((r, i) => { newRanks[r.teamId] = i + 1; });
+
+  let html = `
+    <div class="table-wrap">
+      <table class="standings">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Команда</th>
+            <th title="Игр">И</th>
+            <th title="Побед">В</th>
+            <th title="Ничьих">Н</th>
+            <th title="Поражений">П</th>
+            <th>Форма</th>
+            <th title="Забитые мячи">ЗМ</th>
+            <th title="Пропущенные мячи">ПМ</th>
+            <th title="Разница мячей">РМ</th>
+            <th title="Очки">О</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  rows.forEach((r, i) => {
+    const rank = i + 1;
+    const prev = state.prevRanks[r.teamId];
+    let change = '';
+    if (prev != null && prev !== rank) {
+      const dir = rank < prev ? 'up' : 'down';
+      const arrow = rank < prev ? '↑' : '↓';
+      const diff = Math.abs(prev - rank);
+      change = `<span class="rank-change ${dir}">${arrow}${diff}</span>`;
+    }
+
+    const last5 = r.form.slice(-5);
+    const formHtml = '<div class="form-cell">' +
+      Array.from({ length: 5 }).map((_, idx) => {
+        const result = last5[idx] || null;
+        if (!result) return '<span class="form-square empty">·</span>';
+        const label = result === 'W' ? 'В' : result === 'D' ? 'Н' : 'П';
+        return `<span class="form-square ${result}">${label}</span>`;
+      }).join('') + '</div>';
+
+    const gdClass = r.GD > 0 ? 'positive' : (r.GD < 0 ? 'negative' : '');
+    const gdDisplay = r.GD > 0 ? `+${r.GD}` : `${r.GD}`;
+
+    html += `
+      <tr class="rank-${rank}">
+        <td class="rank-cell">${rank}${change}</td>
+        <td class="team-cell">${escapeHtml(r.name)}</td>
+        <td>${r.GP}</td>
+        <td>${r.W}</td>
+        <td>${r.D}</td>
+        <td>${r.L}</td>
+        <td>${formHtml}</td>
+        <td>${r.GF}</td>
+        <td>${r.GA}</td>
+        <td class="col-gd ${gdClass}">${gdDisplay}</td>
+        <td class="col-pts">${r.Pts}</td>
+      </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+  state.prevRanks = newRanks;
+}
+
+function renderMatrix() {
+  const wrap = document.getElementById('matrix-table-wrap');
+  if (!state.generated || state.teams.length < 2) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔀</div>
+        <div class="empty-state-title">Матрица недоступна</div>
+        <div class="empty-state-sub">Нужно минимум 2 команды для отображения очных встреч.</div>
+      </div>`;
+    return;
+  }
+
+  const teams = state.teams;
+  let html = '<div class="table-wrap"><table class="matrix"><thead><tr>';
+  html += '<th class="corner"></th>';
+  teams.forEach(t => { html += `<th>${escapeHtml(t.name)}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  teams.forEach(rowTeam => {
+    html += `<tr><th class="row-header">${escapeHtml(rowTeam.name)}</th>`;
+    teams.forEach(colTeam => {
+      if (rowTeam.id === colTeam.id) {
+        html += `<td class="diagonal">—</td>`;
+      } else {
+        const matches = state.fixtures.filter(f =>
+          f.played && !f.isBye && f.homeId === rowTeam.id && f.awayId === colTeam.id
+        );
+        if (matches.length === 0) {
+          html += `<td class="cell-pending">—</td>`;
+        } else if (matches.length === 1) {
+          const m = matches[0];
+          const cls = m.homeScore > m.awayScore ? 'cell-W' : m.homeScore < m.awayScore ? 'cell-L' : 'cell-D';
+          html += `<td class="${cls}">${m.homeScore}–${m.awayScore}</td>`;
+        } else {
+          const cells = matches.map(m => {
+            const cls = m.homeScore > m.awayScore ? 'cell-W' : m.homeScore < m.awayScore ? 'cell-L' : 'cell-D';
+            return `<span class="${cls}" style="display:inline-block;padding:2px 5px;margin:1px;border-radius:3px;">${m.homeScore}–${m.awayScore}</span>`;
+          }).join('<br>');
+          html += `<td class="cell-multi">${cells}</td>`;
+        }
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function renderScorers() {
+  const wrap = document.getElementById('scorers-table-wrap');
+  const map = new Map();
+  state.fixtures.forEach(f => {
+    if (!f.played || f.isBye) return;
+    f.scorers.forEach(s => {
+      const name = (s.playerName || '').trim();
+      if (!name) return;
+      const key = `${s.teamId}|${name.toLowerCase()}`;
+      if (!map.has(key)) {
+        map.set(key, { player: name, teamName: teamById(s.teamId).name, goals: 0 });
+      }
+      map.get(key).goals++;
+    });
+  });
+
+  const list = [...map.values()].sort((a, b) => b.goals - a.goals || a.player.localeCompare(b.player, 'ru'));
+
+  if (list.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚽</div>
+        <div class="empty-state-title">Голов пока не забито</div>
+        <div class="empty-state-sub">Указывайте авторов голов при вводе результатов матчей.</div>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="table-wrap">
+      <table class="scorers">
+        <thead>
+          <tr>
+            <th style="width:60px;">Место</th>
+            <th>Игрок</th>
+            <th>Команда</th>
+            <th style="width:80px;">Голы</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  list.forEach((p, i) => {
+    const rank = i + 1;
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+    html += `
+      <tr>
+        <td><span class="medal">${medal}</span> ${medal ? '' : rank}</td>
+        <td class="team-cell">${escapeHtml(p.player)}</td>
+        <td class="team-cell" style="color:var(--text-2); font-weight:500;">${escapeHtml(p.teamName)}</td>
+        <td class="goal-count">${p.goals}</td>
+      </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function renderAll() {
+  renderHeader();
+  renderSetup();
+  renderStatsBar();
+  renderFixtures();
+  renderStandings();
+  renderMatrix();
+  renderScorers();
+}
+
+function addTeam() {
+  const input = document.getElementById('team-input');
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.teams.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+    showToast('Такая команда уже существует', 'error');
+    return;
+  }
+  state.teams.push({ id: uid(), name });
+  input.value = '';
+  if (state.generated && !state.fixtures.some(f => f.played)) {
+    state.fixtures = [];
+    state.generated = false;
+  }
+  saveState();
+  renderAll();
+  input.focus();
+}
+
+function removeTeam(teamId) {
+  if (state.generated && state.fixtures.some(f => f.played)) {
+    if (!confirm('Удаление команды сбросит всё расписание и результаты. Продолжить?')) return;
+    state.fixtures = [];
+    state.generated = false;
+  }
+  state.teams = state.teams.filter(t => t.id !== teamId);
+  if (state.fixtures.length && !state.fixtures.some(f => f.played)) {
+    state.fixtures = [];
+    state.generated = false;
+  }
+  saveState();
+  renderAll();
+}
+
+function onScoreInput(e, fixtureId) {
+  const fix = state.fixtures.find(f => f.id === fixtureId);
+  if (!fix) return;
+  const val = e.target.value === '' ? null : Math.max(0, Math.min(99, parseInt(e.target.value) || 0));
+  if (e.target.dataset.side === 'home') fix.homeScore = val;
+  else fix.awayScore = val;
+}
+
+function saveResult(fixtureId) {
+  const fix = state.fixtures.find(f => f.id === fixtureId);
+  if (!fix) return;
+  if (fix.homeScore == null || fix.awayScore == null) {
+    showToast('Введите оба счёта', 'error');
+    return;
+  }
+  const homeScorers = fix.scorers.filter(s => s.teamId === fix.homeId).filter(s => s.playerName.trim()).length;
+  const awayScorers = fix.scorers.filter(s => s.teamId === fix.awayId).filter(s => s.playerName.trim()).length;
+  if (homeScorers > fix.homeScore || awayScorers > fix.awayScore) {
+    if (!confirm('Указано больше авторов голов, чем забито. Сохранить всё равно?')) return;
+  }
+  fix.scorers = fix.scorers.filter(s => s.playerName.trim());
+  fix.played = true;
+  saveState();
+  renderAll();
+  showToast(`Результат сохранён: ${teamById(fix.homeId).name} ${fix.homeScore}–${fix.awayScore} ${teamById(fix.awayId).name}`, 'success');
+}
+
+function addScorer(fixtureId, teamId) {
+  const fix = state.fixtures.find(f => f.id === fixtureId);
+  if (!fix) return;
+  fix.scorers.push({ teamId, playerName: '' });
+  saveState();
+  renderFixtures();
+  const teamScorers = fix.scorers.filter(s => s.teamId === teamId);
+  const idx = teamScorers.length - 1;
+  setTimeout(() => {
+    const el = document.getElementById(`s_${fixtureId}_${teamId}_${idx}`);
+    if (el) el.focus();
+  }, 50);
+}
+
+function removeScorer(fixtureId, teamId, scorerIndex) {
+  const fix = state.fixtures.find(f => f.id === fixtureId);
+  if (!fix) return;
+  let count = -1;
+  for (let i = 0; i < fix.scorers.length; i++) {
+    if (fix.scorers[i].teamId === teamId) {
+      count++;
+      if (count === scorerIndex) {
+        fix.scorers.splice(i, 1);
+        break;
+      }
+    }
+  }
+  saveState();
+  renderFixtures();
+}
+
+function onScorerInput(e, fixtureId, teamId, scorerIndex) {
+  const fix = state.fixtures.find(f => f.id === fixtureId);
+  if (!fix) return;
+  let count = -1;
+  for (let i = 0; i < fix.scorers.length; i++) {
+    if (fix.scorers[i].teamId === teamId) {
+      count++;
+      if (count === scorerIndex) {
+        fix.scorers[i].playerName = e.target.value;
+        break;
+      }
+    }
+  }
+  showAutocomplete(e.target, teamId);
+}
+
+function onScorerBlur(e, fixtureId, teamId, scorerIndex) {
+  setTimeout(() => {
+    hideAutocomplete(e.target);
+    saveState();
+  }, 150);
+}
+
+function onScorerKey(e, fixtureId, teamId, scorerIndex) {
+  const wrap = e.target.parentElement;
+  const ac = wrap.querySelector('.autocomplete');
+  if (!ac) {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+    return;
+  }
+  const items = [...ac.querySelectorAll('.autocomplete-item')];
+  const highlighted = ac.querySelector('.highlighted');
+  let idx = items.indexOf(highlighted);
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    idx = Math.min(items.length - 1, idx + 1);
+    items.forEach(it => it.classList.remove('highlighted'));
+    if (items[idx]) items[idx].classList.add('highlighted');
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    idx = Math.max(0, idx - 1);
+    items.forEach(it => it.classList.remove('highlighted'));
+    if (items[idx]) items[idx].classList.add('highlighted');
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (highlighted) {
+      e.target.value = highlighted.dataset.value;
+      onScorerInput({ target: e.target }, fixtureId, teamId, scorerIndex);
+      hideAutocomplete(e.target);
+    } else {
+      e.target.blur();
+    }
+  } else if (e.key === 'Escape') {
+    hideAutocomplete(e.target);
+  }
+}
+
+function getPlayerSuggestions(teamId, query) {
+  const allNames = new Set();
+  state.fixtures.forEach(f => {
+    f.scorers.forEach(s => {
+      if (s.teamId === teamId && s.playerName.trim()) {
+        allNames.add(s.playerName.trim());
+      }
+    });
+  });
+  const q = (query || '').toLowerCase().trim();
+  if (!q) return [...allNames].sort();
+  return [...allNames]
+    .filter(n => n.toLowerCase() !== q && n.toLowerCase().includes(q))
+    .sort();
+}
+
+function showAutocomplete(inputEl, teamId) {
+  if (isReadOnly) return;
+  hideAutocomplete(inputEl);
+  const query = inputEl.value;
+  if (!query || query.length < 1) return;
+  const suggestions = getPlayerSuggestions(teamId, query);
+  if (suggestions.length === 0) return;
+  const ac = document.createElement('div');
+  ac.className = 'autocomplete';
+  ac.innerHTML = suggestions.slice(0, 8).map(name =>
+    `<div class="autocomplete-item" data-value="${escapeHtml(name)}" onmousedown="event.preventDefault(); selectAutocomplete(this)">${escapeHtml(name)}</div>`
+  ).join('');
+  inputEl.parentElement.appendChild(ac);
+}
+
+function hideAutocomplete(inputEl) {
+  const ac = inputEl.parentElement.querySelector('.autocomplete');
+  if (ac) ac.remove();
+}
+
+function selectAutocomplete(el) {
+  const wrap = el.closest('.scorer-input-wrap');
+  const input = wrap.querySelector('.scorer-input');
+  input.value = el.dataset.value;
+  const evt = new Event('input', { bubbles: true });
+  input.dispatchEvent(evt);
+  hideAutocomplete(input);
+  saveState();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.dataset.tab === name));
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab');
+  if (btn) switchTab(btn.dataset.tab);
+});
+
+async function exportPNG(elementId, filename) {
+  const el = document.getElementById(elementId);
+  if (!el || !el.querySelector('table')) {
+    showToast('Нечего экспортировать', 'error');
+    return;
+  }
+  showToast('Создаю изображение…');
+  try {
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      logging: false,
+    });
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${state.tournamentName.replace(/[^a-zа-я0-9]/gi, '_')}_${filename}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Изображение скачано!', 'success');
+    });
+  } catch (e) {
+    showToast('Ошибка экспорта: ' + e.message, 'error');
+  }
+}
+
+async function exportAllPNG() {
+  await exportPNG('standings-table-wrap', 'tablitsa.png');
+  setTimeout(() => exportPNG('matrix-table-wrap', 'matritsa.png'), 800);
+  setTimeout(() => exportPNG('scorers-table-wrap', 'bombardiry.png'), 1600);
+}
+
+function generateShareLink() {
+  const stripped = {
+    tournamentName: state.tournamentName,
+    numRounds: state.numRounds,
+    teams: state.teams,
+    fixtures: state.fixtures,
+    generated: state.generated,
+  };
+  const json = JSON.stringify(stripped);
+  const compressed = LZString.compressToEncodedURIComponent(json);
+  const url = `${location.origin}${location.pathname}#share=${compressed}`;
+  showShareModal(url);
+}
+
+function showShareModal(url) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>🔗 Поделиться турниром</h3>
+      <p>Любой, у кого есть эта ссылка, сможет видеть ваш турнир в режиме просмотра. Текущее состояние закодировано в URL.</p>
+      <div class="share-link-box" id="share-link-text">${escapeHtml(url)}</div>
+      <div class="modal-actions">
+        <button class="btn" onclick="this.closest('.modal-backdrop').remove()">Закрыть</button>
+        <button class="btn btn-primary" onclick="copyShareLink('${url.replace(/'/g, "\\'")}')">📋 Скопировать ссылку</button>
+      </div>
+    </div>`;
+  backdrop.onclick = () => backdrop.remove();
+  document.body.appendChild(backdrop);
+}
+
+function copyShareLink(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Ссылка скопирована в буфер обмена!', 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast('Ссылка скопирована!', 'success');
+  });
+  document.querySelector('.modal-backdrop')?.remove();
+}
+
+function confirmNewTournament() {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>⚠️ Начать новый турнир</h3>
+      <p>Это действие безвозвратно удалит текущий турнир: все команды, матчи, результаты и авторов голов. Отменить будет нельзя.</p>
+      <div class="modal-actions">
+        <button class="btn" onclick="this.closest('.modal-backdrop').remove()">Отмена</button>
+        <button class="btn btn-danger" onclick="resetTournament()">Да, удалить всё</button>
+      </div>
+    </div>`;
+  backdrop.onclick = () => backdrop.remove();
+  document.body.appendChild(backdrop);
+}
+
+function resetTournament() {
+  state = {
+    tournamentName: 'Кубок Чемпионов 2026',
+    numRounds: 2,
+    teams: [],
+    fixtures: [],
+    generated: false,
+    prevRanks: {},
+  };
+  localStorage.removeItem(STORAGE_KEY);
+  document.querySelector('.modal-backdrop')?.remove();
+  switchTab('setup');
+  renderAll();
+  showToast('Турнир сброшен', 'success');
+}
+
+document.getElementById('tournament-name').addEventListener('input', e => {
+  state.tournamentName = e.target.value || 'Pitch Pro';
+  renderHeader();
+  saveState();
+});
+document.getElementById('num-rounds').addEventListener('change', e => {
+  const newRounds = parseInt(e.target.value);
+  if (state.generated && state.fixtures.some(f => f.played)) {
+    if (!confirm('Изменение количества кругов перегенерирует расписание и все сыгранные матчи будут потеряны. Продолжить?')) {
+      e.target.value = state.numRounds;
+      return;
+    }
+  }
+  state.numRounds = newRounds;
+  if (state.generated) {
+    state.fixtures = [];
+    state.generated = false;
+  }
+  saveState();
+  renderAll();
+});
+document.getElementById('team-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addTeam(); }
+});
+
+loadState();
+renderAll();
+
+if (state.generated && state.fixtures.length) {
+  if (state.fixtures.some(f => f.played)) {
+    switchTab('standings');
+  } else {
+    switchTab('fixtures');
+  }
+}
+
+if (isReadOnly) {
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.dataset.tab === 'setup') t.style.display = 'none';
+  });
+  if (state.fixtures.some(f => f.played)) {
+    switchTab('standings');
+  } else {
+    switchTab('fixtures');
+  }
+}
+</script>
+</body>
+</html>
