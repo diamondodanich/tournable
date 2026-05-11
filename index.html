@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Pro — Турнирный менеджер</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <svg class="crest" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#047857"/>
+          </linearGradient>
+          <linearGradient id="shieldGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ecfdf5"/>
+            <stop offset="100%" stop-color="#d1fae5"/>
+          </linearGradient>
+        </defs>
+        <path d="M32 4 L58 12 L58 32 Q58 50 32 60 Q6 50 6 32 L6 12 Z" fill="url(#shieldGrad2)" stroke="url(#shieldGrad)" stroke-width="2.5"/>
+        <circle cx="32" cy="30" r="13" fill="none" stroke="#047857" stroke-width="1.8"/>
+        <polygon points="32,21 38,25 36,32 28,32 26,25" fill="#059669" opacity="0.95"/>
+        <circle cx="32" cy="30" r="2" fill="#047857"/>
+        <text x="32" y="52" font-family="Bebas Neue, sans-serif" font-size="8" fill="#047857" text-anchor="middle" letter-spacing="1">PITCH PRO</text>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-name" id="header-tournament-name">PITCH PRO</div>
+        <div class="brand-sub">Турнирный менеджер · Осн. 2026</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="live-badge" id="live-badge">
+        <span class="live-dot"></span>
+        <span id="live-text">В ЭФИРЕ</span>
+      </span>
+      <button class="btn btn-danger new-tournament-btn" onclick="confirmNewTournament()">Новый турнир</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="setup">Настройка</button>
+    <button class="tab" data-tab="fixtures">Матчи <span class="badge-count" id="fixtures-count">0</span></button>
+    <button class="tab" data-tab="standings">Таблица</button>
+    <button class="tab" data-tab="scorers">Бомбардиры</button>
+  </nav>
+
+  <div id="stats-bar" class="stats-bar" style="display:none;">
+    <div class="stat-card"><div class="stat-label">Команд</div><div class="stat-value accent" id="stat-teams">0</div></div>
+    <div class="stat-card"><div class="stat-label">Сыграно матчей</div><div class="stat-value" id="stat-played">0</div></div>
+    <div class="stat-card"><div class="stat-label">Всего матчей</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat-card"><div class="stat-label">Забито голов</div><div class="stat-value green" id="stat-goals">0</div></div>
+  </div>
+
+  <section class="tab-content active setup-panel" data-tab="setup">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Настройка турнира</h2>
+        </div>
+      </div>
+
+      <div class="setup-grid">
+        <div class="field-group">
+          <label class="field-label">Название турнира</label>
+          <input type="text" class="input" id="tournament-name" placeholder="например: Кубок Чемпионов 2026" maxlength="40">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Количество кругов</label>
+          <select class="select" id="num-rounds">
+            <option value="1">1 круг (однокруговой)</option>
+            <option value="2" selected>2 круга (дома и в гостях)</option>
+            <option value="3">3 круга</option>
+            <option value="4">4 круга</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Добавление команд</label>
+        <div class="row-input">
+          <input type="text" class="input" id="team-input" placeholder="Введите название команды и нажмите Enter…" maxlength="30">
+          <button class="btn btn-primary" onclick="addTeam()">+ Добавить команду</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Команды (<span id="team-count">0</span>)</label>
+        <div class="chip-row empty" id="team-chips"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px;">
+        <button class="btn btn-success" id="generate-btn" onclick="generateSchedule()" disabled>⚡ Сгенерировать расписание</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="fixtures">
+    <div class="panel" id="fixtures-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Матчи и результаты</h2>
+        </div>
+        <div class="panel-actions">
+          <span class="mono" style="color:var(--text-3); font-size:12px;" id="fixtures-progress">Сыграно 0 из 0</span>
+        </div>
+      </div>
+      <div id="fixtures-content">
+        <div class="empty-state">
+          <div class="empty-state-icon">⚽</div>
+          <div class="empty-state-title">Матчей пока нет</div>
+          <div class="empty-state-sub">Добавьте команды и сгенерируйте расписание, чтобы увидеть матчи.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="standings">
+    <div class="panel" id="standings-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar"></div>
+          <h2 class="panel-title">Турнирная таблица</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('standings-table-wrap', 'tablitsa.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="standings-table-wrap"></div>
+    </div>
+
+    <div class="panel" id="matrix-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar" style="background: linear-gradient(180deg, var(--win), #047857);"></div>
+          <h2 class="panel-title">Матрица очных встреч</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('matrix-table-wrap', 'matritsa.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="matrix-table-wrap"></div>
+    </div>
+  </section>
+
+  <section class="tab-content" data-tab="scorers">
+    <div class="panel" id="scorers-panel">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="accent-bar" style="background: linear-gradient(180deg, var(--gold), #b87333);"></div>
+          <h2 class="panel-title">Лучшие бомбардиры</h2>
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="exportPNG('scorers-table-wrap', 'bombardiry.png')">📷 Скачать PNG</button>
+        </div>
+      </div>
+      <div id="scorers-table-wrap"></div>
+    </div>
+  </section>
+
+  <div class="footer-actions" id="footer-actions">
+    <button class="btn btn-primary" onclick="generateShareLink()">🔗 Поделиться ссылкой</button>
+    <button class="btn" onclick="exportAllPNG()">📷 Скачать все таблицы</button>
+  </div>
+
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
